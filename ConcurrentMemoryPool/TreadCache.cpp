@@ -16,7 +16,7 @@ void* ThreadCache::FetchFromCentralCache(size_t index, size_t byte)
 	size_t num_to_move = min(ClassSize::NumMoveSize(byte), freelist->MaxSize());
 
 	// start，end分别表示取出来的内存的开始地址和结束地址
-	// 取出来的内存是一个链在一起的内存对象，需要守卫标识
+	// 取出来的内存是一个链在一起的内存对象，需要首尾标识
 	void* start, *end;
 
 	// fetchnum表示实际取出来的内存的个数
@@ -26,7 +26,7 @@ void* ThreadCache::FetchFromCentralCache(size_t index, size_t byte)
 	{
 		freelist->PushRange(NEXT_OBJ(start), end, fetchnum - 1);
 	}
-	// 下一次申请相同位置的，申请数量加1
+	// 上次一次移动数量由最大值决定,申请数量加1
 	if (num_to_move == freelist->MaxSize())
 	{
 		freelist->SetMaxSize(num_to_move + 1);
@@ -58,7 +58,7 @@ void* ThreadCache::Allocate(size_t byte)
 	}
 }
 
-// 将空闲的内存还给threadCache中对应的自由链表
+// 将内存对象还给threadCache中对应的自由链表
 void ThreadCache::Deallocate(void* ptr, size_t byte)
 {
 	assert(byte < MAXBYTES);
@@ -68,9 +68,9 @@ void ThreadCache::Deallocate(void* ptr, size_t byte)
 
 	freelist->Push(ptr);
 
-	// 当自由链表的数量超过一次从Central cache申请的内存块的数量时
-	// 开始回收内存块到中心缓存
 	// 资源均衡策略
+	// 当自由链表的数量超过一次从CentralCache申请的内存块的数量时
+	// 开始回收内存块到中心缓存
 	if (freelist->Size() >= freelist->MaxSize())
 	{
 		ListTooLong(freelist, byte);

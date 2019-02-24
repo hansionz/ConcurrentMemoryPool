@@ -7,7 +7,7 @@
 class ThreadCache
 {
 public:
-	//给线程分配内存
+	// 分配内存
 	void* Allocate(size_t size);
 
 	//释放内存

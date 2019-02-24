@@ -4,14 +4,16 @@
 #include "ThreadCache.hpp"
 #include "PageCache.hpp"
 
+// 用户申请内存
 void* ConcurrentAlloc(size_t size)
 {
 	// 申请的内存大于64K,就直接到PageCache中申请内存
 	if (size > MAXBYTES)
 	{
-		// 按页的大小对齐
+		// 按页的大小对齐,计算出申请的页的个数(1页=4k)
 		size_t roundsize = ClassSize::_RoundUp(size, 1 << PAGE_SHIFT);
 		size_t npage = roundsize >> PAGE_SHIFT;
+		// 获得span对象
 		Span* span = PageCache::GetInstance()->NewSpan(npage);
 		void* ptr = (void*)(span->_pageid << PAGE_SHIFT);
 
@@ -34,7 +36,7 @@ void* ConcurrentAlloc(size_t size)
 	}
 }
 
-// 将获取到的内存块归还上一层
+// 用户释放内存
 void ConcurrentFree(void* ptr)
 {
 	// 获取页号到span的映射

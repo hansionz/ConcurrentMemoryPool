@@ -5,7 +5,6 @@
 	所以对于中心缓存可以使用单例模式来进行创建中心缓存的类
 	对于中心缓存来说要加锁
 */
-
 #pragma once 
 
 #include "Common.hpp"
@@ -21,7 +20,7 @@ public:
 	//从中心缓存获取一定数量的内存给thread cache
 	size_t FetchRangeObj(void*& start, void*& end, size_t num, size_t byte);
 
-	//从span链表数组中拿出和bytes相等的span链表，并在该链表中查找一个还有内存块的span
+	// 从span链表数组中拿出和bytes相等的span链表
 	Span* GetOneSpan(SpanList* spanlist, size_t bytes);
 
 	//将ThreadCache中的内存块归还给CentralCache

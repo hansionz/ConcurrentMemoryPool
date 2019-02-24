@@ -36,7 +36,7 @@
   * MapObjectToSpan：当内存对象从ThreadCache归还给CentralCache时，每一个内存对象都需要知道自由是属于哪一个Span对象的，所以在PageCache合并Span或者是从系统申请出来的Span，都要建立一个页号到Span的映射，在归还的时候，可以通过查找这个映射关系来确定是在哪一个Span中，本接口就是为了查找映射关系
   * RelaseToPageCache：每一个Span对象中都存在着一个使用计数，当这个使用计数为0时说明该Span中的所有内存对象都是空闲的。此时，可以将这个Span对象归还给PageCache中进行合并来减少内存碎片。本接口主要在CentralCache中的ReleaseListToSpans被调用，用来归还Span对象和合并相邻空闲的Span来减少内存碎片
 
-**注：本项目详细介绍位于我的CADN博客，博客链接在下边。**
+**注：本项目详细介绍位于我的CSDN博客，博客链接在下边。**
 
 **https://blog.csdn.net/hansionz/article/details/87885229**
 

@@ -1,6 +1,5 @@
 #include "PageCache.hpp"
 
-// 对于静态的成员变量必须在类外进行初始化
 PageCache PageCache::_inst;
 
 Span* PageCache::NewSpan(size_t npage)
@@ -8,10 +7,11 @@ Span* PageCache::NewSpan(size_t npage)
 	// 加锁，防止多个线程同时到PageCache中申请span
 	// 这里必须是给全局加锁，不能单独的给每个桶加锁
 	// 如果对应桶没有span,是需要向系统申请的
+	// 可能存在多个线程同时向系统申请内存的可能
 	std::unique_lock<std::mutex> lock(_mtx);
+	// 申请的是大于128的页的大小
 	if (npage >= NPAGES)
 	{
-		// 申请的是大于128的页的大小
 		void* ptr = SystemAlloc(npage);
 		// 构造span去管理从系统申请的内存
 		Span* span = new Span();
@@ -33,8 +33,6 @@ Span* PageCache::NewSpan(size_t npage)
 	span->_objsize = span->_npage << PAGE_SHIFT;
 	return span;
 }
-
-// 从PageCache出拿取一个span用来给CentralCache
 Span* PageCache::_NewSpan(size_t npage)
 {
 	// 存在空闲的span,直接返回一个span
@@ -42,7 +40,6 @@ Span* PageCache::_NewSpan(size_t npage)
 	{
 		return _pagelist[npage].PopFront();
 	}
-
 	// 如果npage的span为空，接下来检查比他大的span是不是为空的，如果不是空的就切割这个span
 	for (size_t i = npage + 1; i < NPAGES; i++)
 	{
@@ -69,10 +66,9 @@ Span* PageCache::_NewSpan(size_t npage)
 			return split;
 		}
 	}
-
-	// 到这里说明SpanList没有合适的span,只能想系统申请128页的内存
-	void* ptr = SystemAlloc(npage);
-
+	// 到这里说明SpanList中没有合适的span,只能向系统申请128页的内存
+	// void* ptr = SystemAlloc(npage);
+	void* ptr = SystemAlloc(128);
 	Span* largespan = new Span();
 	largespan->_pageid = (PageID)(ptr) >> PAGE_SHIFT;
 	largespan->_npage = NPAGES - 1;
@@ -84,10 +80,11 @@ Span* PageCache::_NewSpan(size_t npage)
 		_id_span_map[largespan->_pageid + i] = largespan;
 	}
 
+	// 尾递归一次
 	return _NewSpan(npage);
 }
 
-// 查map，找到对应指针的span
+// 查map找到对应指针的span
 Span* PageCache::MapObjectToSpan(void* obj)
 {
 	// 计算该内存的页号
@@ -114,11 +111,10 @@ void PageCache::RelaseToPageCache(Span* span)
 		_id_span_map.erase(span->_pageid);
 		SystemFree(ptr);
 		delete span;
-
 		return;
 	}
 
-	// 合并过程:先先前合并，然后跳过该span再次向后合并
+	// 合并过程:先向前合并，然后跳过该span再次向后合并
 	// 找到这个span前面一个span
 	auto previt = _id_span_map.find(span->_pageid - 1);
 
@@ -145,7 +141,6 @@ void PageCache::RelaseToPageCache(Span* span)
 		delete(span);
 		span = prevspan;
 		
-		// ?? -1 还是 -span->npage
 		previt = _id_span_map.find(span->_pageid - 1);
 	}
 
@@ -176,12 +171,12 @@ void PageCache::RelaseToPageCache(Span* span)
 		nextvit = _id_span_map.find(span->_pageid + span->_npage);
 	}
 
-	//将合并好的页都映射到新的span上
+	// 将合并好的页都映射到新的span上
 	for (size_t i = 0; i < span->_npage; i++)
 	{
 		_id_span_map[span->_pageid + i] = span;
 	}
 
-	//最后将合并好的span插入到span链中
+	// 最后将合并好的span插入到span链中
 	_pagelist[span->_npage].PushFront(span);
 }
